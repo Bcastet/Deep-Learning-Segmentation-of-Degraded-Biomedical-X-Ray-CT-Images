@@ -20,10 +20,13 @@ class SeparatedDataset(Dataset):
         self.len_sets = []
 
         for seq in os.listdir(damaged_data_source):
-            if os.path.isdir(seq):
+            if os.path.isdir(os.path.join(damaged_data_source, seq)):
                 self.sets.append(seq)
-                self.len += len(os.listdir(os.path.join(damaged_data_source, seq)))
-                self.len_sets.append(len(os.listdir(os.path.join(damaged_data_source, seq))))
+                self.len += len(os.listdir(os.path.join(*[damaged_data_source, seq, input_source_dir])))
+                self.len_sets.append(len(os.listdir(os.path.join(*[damaged_data_source, seq, input_source_dir]))))
+
+        print(self.input_path, self.target_path, self.input_source, self.target_source, self.sets, self.len,
+              self.len_sets)
 
     def __len__(self):
         return self.len
@@ -33,26 +36,25 @@ class SeparatedDataset(Dataset):
             item = item.item()
 
         set_idx = 0
-        while item > self.len_sets[set_idx]:
+        while item >= self.len_sets[set_idx]:
             item -= self.len_sets[set_idx]
             set_idx += 1
 
         img_idx = item
 
-        file = self.input_path + str(
-            self.sets[set_idx]) + self.input_source + "/" + str(img_idx) + ".tif"
+        file = os.path.join(*[self.input_path, str(self.sets[set_idx]), self.input_source, str(img_idx) + ".tif"])
+
         source = numpy.asarray(Image.open(file))
 
-        target_file = self.target_path + str(
-            self.sets[set_idx]) + self.target_source + str(img_idx) + ".tif"
+        target_file = os.path.join(
+            *[self.input_path, str(self.sets[set_idx]), self.target_source, str(img_idx) + ".tif"])
         target = numpy.asarray(Image.open(target_file))
 
         source = source.reshape(1, source.shape[0], source.shape[1])
         target = target.reshape(1, target.shape[0], target.shape[1])
 
-        if source[0][0][0] > 1:
-            source = source / 255
-            target = target / 255
+        source = source / 255
+        target = target / 255
 
         source = torch.tensor(source).float()
         target = torch.tensor(target).float()
@@ -79,8 +81,8 @@ class datasetAsPatches(Dataset):
 
         image_idx = item // 25
         patch_idx = item % 25
-
-        return imageAsDataset(self.source_dataset[image_idx])[patch_idx]
+        input_image, target_image = self.source_dataset[image_idx]
+        return imageAsDataset(input_image, target_image)[patch_idx]
 
 
 class imageAsDataset(Dataset):

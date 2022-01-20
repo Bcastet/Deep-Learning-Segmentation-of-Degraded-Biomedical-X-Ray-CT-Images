@@ -34,7 +34,6 @@ def parse_args(argv):
     opts, args = getopt.getopt(argv, "",
                                ["input =", "target =", "save =", "model =", "epochs =", "model_type =", "data_mode =",
                                 "damaged_dir =", "segmented_dir ="])
-    print(opts)
     input_data_repository = None
     target_repository = None
     model_type = None
@@ -143,8 +142,8 @@ def main(argv):
     elif data_mode == "unified":
         dataset = UnifiedDataset(input_data_repository, target_repository)
 
-    if epochs is not None:
-        epochs = 3
+    if epochs is None:
+        epochs = 1
 
 
     device = torch.device("cuda:0")

@@ -10,6 +10,8 @@ from logger import Logger
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
+from utils import *
+import matplotlib.pyplot as plt
 
 
 class UNet(nn.Module):
@@ -49,6 +51,8 @@ class UNet(nn.Module):
         self.conv = nn.Conv2d(
             in_channels=features, out_channels=out_channels, kernel_size=1
         )
+        eps = 1e-10
+        self.threshold = torch.nn.Threshold(0.5, 0)
 
     def forward(self, x):
         enc1 = self.encoder1(x)
@@ -70,10 +74,10 @@ class UNet(nn.Module):
         dec1 = self.upconv1(dec2)
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
-        return torch.sigmoid(self.conv(dec1))
+        return self.threshold(torch.sigmoid(self.conv(dec1)))
 
     @staticmethod
-    def _block(in_channels, features, name, padding = 1):
+    def _block(in_channels, features, name, padding=1):
         return nn.Sequential(
             OrderedDict(
                 [
@@ -107,88 +111,68 @@ class UNet(nn.Module):
 
 
 def run_train(model, epochs, dataset, device):
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
     dataset = ds.datasetAsPatches(dataset)
     lr = 1e-3
     batch_size = 16
     vis_freq = 1
 
-    def log_loss_summary(logger, loss, step, prefix=""):
-        logger.scalar_summary(prefix + "loss", np.mean(loss), step)
+    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9),
+                                                                 int(len(dataset) - int(len(dataset) * 0.9))])
 
-    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9) + 1, int(len(dataset) * 0.1)])
     loader_train = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2)
     loader_valid = torch.utils.data.DataLoader(val_set, batch_size=batch_size, shuffle=True, num_workers=2)
     loaders = {"train": loader_train, "valid": loader_valid}
+
+    print("Dataset size : ", len(dataset))
+    print("Steps per epoch : ", len(dataset) // batch_size)
 
     unet = model
     unet.to(device)
 
     dsc_loss = DiceLoss()
-    best_validation_dsc = 0.0
 
     optimizer = optim.Adam(unet.parameters(), lr=lr)
 
-    logger = Logger("logs/")
     loss_train = []
-    loss_valid = []
-    vis_images = 10
     step = 0
 
     for epoch in tqdm(range(epochs), total=epochs):
+        print("Current epoch:", epoch)
         for phase in ["train"]:
             if phase == "train":
                 unet.train()
             else:
                 unet.eval()
 
-            validation_pred = []
-            validation_true = []
-
             for i, data in enumerate(loaders[phase]):
                 if phase == "train":
                     step += 1
-
-                x, y_true = data
+                x, y_true, x_pos, y_pos = data
                 x, y_true = x.to(device), y_true.to(device)
-
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == "train"):
                     y_pred = unet(x)
 
                     loss = dsc_loss(y_pred, y_true)
-
-                    if phase == "valid":
-                        loss_valid.append(loss.item())
-                        y_pred_np = y_pred.detach().cpu().numpy()
-                        validation_pred.extend(
-                            [y_pred_np[s] for s in range(y_pred_np.shape[0])]
-                        )
-                        y_true_np = y_true.detach().cpu().numpy()
-                        validation_true.extend(
-                            [y_true_np[s] for s in range(y_true_np.shape[0])]
-                        )
-                        if (epoch % vis_freq == 0) or (epoch == epochs - 1):
-                            if i * batch_size < vis_images:
-                                tag = "image/{}".format(i)
-                                num_images = vis_images - i * batch_size
-                                logger.image_list_summary(
-                                    tag,
-                                    log_images(x, y_true, y_pred)[:num_images],
-                                    step,
-                                )
-
                     if phase == "train":
                         loss_train.append(loss.item())
                         loss.backward()
                         optimizer.step()
+                        if loss.item() < 0:
+                            plt.imshow(x)
+                            plt.title("Prediction")
+                            plt.show()
+                            plt.imshow(y_pred)
+                            plt.title("Prediction")
+                            plt.show()
+                            plt.imshow(y_true)
+                            plt.title("Truth")
+                            plt.show()
 
                 if phase == "train" and (step + 1) % 10 == 0:
-                    log_loss_summary(logger, loss_train, step)
                     print("Step", step, ":", np.mean(loss_train))
                     loss_train = []
+
         torch.save(unet.state_dict(), "unet_intermediary.pt")
-    print("Best validation mean DSC: {:4f}".format(best_validation_dsc))
     return unet
