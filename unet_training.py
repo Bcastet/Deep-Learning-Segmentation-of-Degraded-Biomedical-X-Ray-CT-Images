@@ -63,7 +63,7 @@ def parse_args(argv):
             if not os.path.isdir(input_data_repository):
                 usage(IllegalArgumentError("--model " + use_model_in_repo + " is not a valid directory"))
         if opt == "--model_type ":
-            if arg in ["Unet", "LRVnet"]:
+            if arg in ["Unet", "LRVNet"]:
                 model_type = arg
             else:
                 usage(IllegalArgumentError("--model_type must be in " + str(["Unet", "LRVnet"]) + " not " + arg))
@@ -131,8 +131,8 @@ def main(argv):
         model = UNet(in_channels=1, out_channels=1)
 
     elif model_type == "LRVNet":
-        from LRVNET import LRFFCNCNN, run_train
-        model = LRFFCNCNN()
+        from LRVNET import LRFFCNCNN, run_train, lowResolutionBranch
+        model = lowResolutionBranch(), LRFFCNCNN()
 
     if use_model_in_repo is not None:
         model.load_state_dict(torch.load(use_model_in_repo))
@@ -145,13 +145,11 @@ def main(argv):
     if epochs is None:
         epochs = 1
 
-
     device = torch.device("cuda:0")
-
     model = run_train(model, epochs, dataset, device)
 
 
 if __name__ == '__main__':
-    argv = ['--input', 'D:/Datasets', '--target', 'D:/Datasets', "--model_type", "Unet", "--data_mode", "separated",
+    argv = ['--input', 'D:/Datasets', '--target', 'D:/Datasets', "--model_type", "LRVNet", "--data_mode", "separated",
             "--damaged_dir", "ReconFBP_crop_300", "--segmented_dir", "ReconFBP_1800_SEGM"]
     main(argv)
