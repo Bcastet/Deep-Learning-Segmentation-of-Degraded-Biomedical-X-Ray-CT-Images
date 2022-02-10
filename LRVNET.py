@@ -8,6 +8,9 @@ from loss import DiceLoss
 patch_size = 5
 from dataset import *
 
+verbose = True
+show_image_while_train = False
+
 
 class LRFFCNCNN(torch.nn.Module):
     def __init__(self):
@@ -367,10 +370,12 @@ def train_lowres(dataset, lowresbranch, epochs, device):
     loss_values = []
 
     subss = torch.nn.MaxPool2d((16, 16))
-    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9), int(len(dataset)) - int(len(dataset) * 0.9)])
+    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9),
+                                                                 int(len(dataset)) - int(len(dataset) * 0.9)])
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=16, shuffle=True, num_workers=8)
     validation_loader = torch.utils.data.DataLoader(val_set, batch_size=16, shuffle=True, num_workers=8)
 
+    print("Train loader has", len(train_set), "samples")
     for epoch in range(epochs):
         for i_batch, sample_batch in enumerate(train_loader):
             x = sample_batch[0]
@@ -389,25 +394,26 @@ def train_lowres(dataset, lowresbranch, epochs, device):
             optimizer_lowres.step()
             optimizer_lowres.zero_grad()
 
-            if i_batch % 10 == 0:
-                plt.close('all')
+            if i_batch % 10 == 0 and verbose == True:
+                if show_image_while_train:
+                    plt.close('all')
 
-                disp = y_pred[0].cpu()[0].reshape(85, 85).detach().numpy()
-                x_disp = x[0].cpu().reshape(85, 85).detach().numpy()
-                y_disp = y[0].cpu().reshape(85, 85).detach().numpy()
+                    disp = y_pred[0].cpu()[0].reshape(85, 85).detach().numpy()
+                    x_disp = x[0].cpu().reshape(85, 85).detach().numpy()
+                    y_disp = y[0].cpu().reshape(85, 85).detach().numpy()
 
-                plt.imshow(x_disp)
-                plt.title("Origin")
-                plt.show()
-                plt.imshow(disp)
-                plt.title("Prediction - DICE=" + str(round(1 - output.item(), 3)))
-                plt.show()
-                plt.imshow(y_disp)
-                plt.title("Target")
-                plt.show()
+                    plt.imshow(x_disp)
+                    plt.title("Origin")
+                    plt.show()
+                    plt.imshow(disp)
+                    plt.title("Prediction - DICE=" + str(round(1 - output.item(), 3)))
+                    plt.show()
+                    plt.imshow(y_disp)
+                    plt.title("Target")
+                    plt.show()
 
                 print('[%d, %5d] loss: %.3f' % (epoch + 1, i_batch + 1, output.item()))
-                torch.save(lowresbranch.state_dict(), "lowresIntermediary.pth")
+                torch.save(lowresbranch.state_dict(), "lowresIntermediary.pt")
     return lowresbranch
 
 
@@ -416,7 +422,9 @@ def train_unet(dataset, lowresbranch_trained, unet, device, epochs):
     unet.to(device)
     optimizer_u = torch.optim.Adam(unet.parameters(), lr=1e-4)
 
-    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9), int(len(dataset)) - int(len(dataset) * 0.9)])
+    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9),
+                                                                 int(len(dataset)) - int(len(dataset) * 0.9)])
+    print("Train set has:",len(train_set), "images")
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=1, shuffle=True, num_workers=2)
     validation_loader = torch.utils.data.DataLoader(val_set, batch_size=1, shuffle=True, num_workers=2)
     loss_values = []
@@ -431,12 +439,11 @@ def train_unet(dataset, lowresbranch_trained, unet, device, epochs):
 
             lowres_pred = lowresbranch_trained(x.float().cuda())
 
-            imagedset = imageAsDataset(x, y)
+            imagedset = imageAsDataset(x, y, 85, 16)
             imageloader = torch.utils.data.DataLoader(imagedset, batch_size=16, shuffle=True, num_workers=4)
 
             for batch_index, batch_sample in enumerate(imageloader):
                 patchx, patchy, coordx, coordy = batch_sample
-
                 patch_pred = unet(lowres_pred, patchx.float().cuda(), coordx, coordy)
 
                 target = patchy.float().cuda()
@@ -446,35 +453,31 @@ def train_unet(dataset, lowresbranch_trained, unet, device, epochs):
                 optimizer_u.step()
                 optimizer_u.zero_grad()
 
-                full_output.item()
+                if batch_index == 15 and verbose == True:
+                    if show_image_while_train:
+                        plt.close('all')
+                        disp = patch_pred[0].cpu()[0].reshape(85, 85).detach().numpy()
+                        x_disp = patchx[0].cpu().reshape(85, 85).detach().numpy()
+                        y_disp = patchy[0].cpu().reshape(85, 85).detach().numpy()
 
-                if batch_index == 15:
-                    plt.close('all')
-
-                    disp = patch_pred[0].cpu()[0].reshape(85, 85).detach().numpy()
-                    x_disp = patchx[0].cpu().reshape(85, 85).detach().numpy()
-                    y_disp = patchy[0].cpu().reshape(85, 85).detach().numpy()
-
-                    plt.imshow(x_disp)
-                    plt.title("Origin")
-                    plt.show()
-                    plt.imshow(disp)
-                    plt.title("Prediction - DICE=" + str(round(1 - full_output.item(), 3)))
-                    plt.show()
-                    plt.imshow(y_disp)
-                    plt.title("Target")
-                    plt.show()
+                        plt.imshow(x_disp)
+                        plt.title("Origin")
+                        plt.show()
+                        plt.imshow(disp)
+                        plt.title("Prediction - DICE=" + str(round(1 - full_output.item(), 3)))
+                        plt.show()
+                        plt.imshow(y_disp)
+                        plt.title("Target")
+                        plt.show()
 
                     print('[%d, %5d] loss: %.3f' % (
                         epoch + 1, (batch_index * i_batch) + 1, full_output.item()))
-            loss_values.append(running_loss // ((batch_index * i_batch) + 1))
-
-    print(loss_values)
-    torch.save(unet.state_dict(), "LRFFCN.pth")
+                    torch.save(unet.state_dict(), "LRVNETIntermediary.pt")
+    return unet
 
 
 def run_train(model, epochs, dataset, device):
     lowResBranch, unet = model
+    lowResBranch = train_lowres(dataset, lowResBranch, epochs, device)
     funLowRes = functionnalLowRes(lowResBranch)
-    train_lowres(dataset, lowResBranch, epochs, device)
-    train_unet(dataset, funLowRes, unet, device, epochs)
+    return train_unet(dataset, funLowRes, unet, device, epochs)

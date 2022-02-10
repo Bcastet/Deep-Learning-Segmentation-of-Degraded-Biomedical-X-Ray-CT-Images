@@ -20,9 +20,9 @@ def usage(exception):
     print("     --model_type <model_type>    : 'Unet' or 'LRVNET'")
     print("     --data_mode <data_mode>      : 'separated' or 'unified'")
     print("   -other options")
-    print("     --damaged_dir <damaged_dir>  : name of the directory where inputs are located. Only for separated mode")
+    print("     --damaged_dir <damaged_dir>  : name of the directory where inputs are located. Only for separated mode. Ex : ReconFBP_crop_300")
     print(
-        "     --segmented_dir <segmented_dir>: name of the directory where targets are located. Only for separated mode")
+        "     --segmented_dir <segmented_dir>: name of the directory where targets are located. Only for separated mode. Ex : ReconFBP_1800_SEGM")
     print("     --save   <save_repository>   : the location the model should be saved at")
     print("     --model  <pretrained_model>  : use this option to train an already trained model")
     print("     --epochs <epochs>            : the number of epochs")
@@ -37,7 +37,7 @@ def parse_args(argv):
     input_data_repository = None
     target_repository = None
     model_type = None
-    model_save_repository = None
+    model_save_repository = "models/"
     use_model_in_repo = None
     epochs = None
     data_mode = None
@@ -147,6 +147,7 @@ def main(argv):
 
     device = torch.device("cuda:0")
     model = run_train(model, epochs, dataset, device)
+    torch.save(model.state_dict(), os.path.join(model_save_repository, model_type + ".pt"))
 
 
 if __name__ == '__main__':

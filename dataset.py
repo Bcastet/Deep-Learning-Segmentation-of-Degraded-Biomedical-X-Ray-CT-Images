@@ -25,9 +25,6 @@ class SeparatedDataset(Dataset):
                 self.len += len(os.listdir(os.path.join(*[damaged_data_source, seq, input_source_dir])))
                 self.len_sets.append(len(os.listdir(os.path.join(*[damaged_data_source, seq, input_source_dir]))))
 
-        print(self.input_path, self.target_path, self.input_source, self.target_source, self.sets, self.len,
-              self.len_sets)
-
     def __len__(self):
         return self.len
 
@@ -62,9 +59,11 @@ class SeparatedDataset(Dataset):
         return [source, target]
 
 
-class UnifiedDataset(Dataset):
+class UnifiedDataset(SeparatedDataset):
     def __init__(self, damaged_data_source, segmented_data_source):
         pass
+        super().__init__()
+
 
 
 class datasetAsPatches(Dataset):
@@ -82,23 +81,25 @@ class datasetAsPatches(Dataset):
         image_idx = item // 25
         patch_idx = item % 25
         input_image, target_image = self.source_dataset[image_idx]
-        return imageAsDataset(input_image, target_image)[patch_idx]
+        return imageAsDataset(input_image, target_image, 256, 5)[patch_idx]
 
 
 class imageAsDataset(Dataset):
-    def __init__(self, tensor_image, target_image):
+    def __init__(self, tensor_image, target_image, size, divide_by):
         self.tensor_image = tensor_image.reshape((1360, 1360, 1))
         self.target_image = target_image.reshape((1360, 1360, 1))
+        self.size = size
+        self.divide_by = divide_by
 
     def __len__(self):
-        return 5 * 5
+        return self.divide_by * self.divide_by
 
     def __getitem__(self, item):
-        x = item % 5
-        y = item // 5
+        x = item % self.divide_by
+        y = item // self.divide_by
 
-        inp = self.tensor_image[y * 256:(y + 1) * 256, x * 256:(x + 1) * 256]
-        tar = self.target_image[y * 256:(y + 1) * 256, x * 256:(x + 1) * 256]
+        inp = self.tensor_image[y * self.size:(y + 1) * self.size, x * self.size:(x + 1) * self.size]
+        tar = self.target_image[y * self.size:(y + 1) * self.size, x * self.size:(x + 1) * self.size]
 
-        return inp.reshape((1, 256, 256)), \
-               tar.reshape((1, 256, 256)), x, y
+        return inp.reshape((1, self.size, self.size)), \
+               tar.reshape((1, self.size, self.size)), x, y

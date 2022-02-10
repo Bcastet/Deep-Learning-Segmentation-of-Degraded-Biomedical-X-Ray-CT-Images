@@ -2,20 +2,20 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-import numpy as np
 import dataset as ds
-import os
 from loss import DiceLoss
-from logger import Logger
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
-from utils import *
+# from utils import *
 import matplotlib.pyplot as plt
+import numpy as np
+
+verbose = True
+show_images_on_train = False
 
 
 class UNet(nn.Module):
-
     def __init__(self, in_channels=3, out_channels=1, init_features=32):
         super(UNet, self).__init__()
 
@@ -159,7 +159,7 @@ def run_train(model, epochs, dataset, device):
                         loss_train.append(loss.item())
                         loss.backward()
                         optimizer.step()
-                        if loss.item() < 0:
+                        if loss.item() < 0 and show_images_on_train == True:
                             plt.imshow(x)
                             plt.title("Prediction")
                             plt.show()
@@ -170,7 +170,7 @@ def run_train(model, epochs, dataset, device):
                             plt.title("Truth")
                             plt.show()
 
-                if phase == "train" and (step + 1) % 10 == 0:
+                if phase == "train" and (step + 1) % 10 == 0 and verbose:
                     print("Step", step, ":", np.mean(loss_train))
                     loss_train = []
 
