@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 import getopt
 import os
-
+import sys
 
 class IllegalArgumentError(ValueError):
     pass
@@ -159,6 +159,6 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    argv = ['--input', 'D:/Datasets', "--model_type", "LRVNet", "--damaged_dir", "ReconFBP_crop_300", "--segmented_dir",
-            "ReconFBP_1800_SEGM", "--save", "E:/Builds/", "--model_location", "models/defaultLRVnet.pth", "--lowresbranch","models/defaultlowresBranch.pt"]
-    main(argv)
+    #argv = ['--input', 'D:/Datasets', "--model_type", "LRVNet", "--damaged_dir", "ReconFBP_crop_300", "--segmented_dir",
+    #        "ReconFBP_1800_SEGM", "--save", "E:/Builds/", "--model_location", "models/defaultLRVnet.pth", "--lowresbranch","models/defaultlowresBranch.pt"]
+    main(sys.argv)

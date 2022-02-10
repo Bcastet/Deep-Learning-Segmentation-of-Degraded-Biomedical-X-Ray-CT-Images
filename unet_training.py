@@ -151,6 +151,6 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    argv = ['--input', 'D:/Datasets', '--target', 'D:/Datasets', "--model_type", "LRVNet", "--data_mode", "separated",
-            "--damaged_dir", "ReconFBP_crop_300", "--segmented_dir", "ReconFBP_1800_SEGM"]
-    main(argv)
+    #argv = ['--input', 'D:/Datasets', '--target', 'D:/Datasets', "--model_type", "LRVNet", "--data_mode", "separated",
+    #        "--damaged_dir", "ReconFBP_crop_300", "--segmented_dir", "ReconFBP_1800_SEGM"]
+    main(sys.argv)
