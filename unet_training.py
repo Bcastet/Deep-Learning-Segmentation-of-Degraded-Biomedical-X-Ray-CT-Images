@@ -164,5 +164,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    argv = ['--input', 'D:/UnifiedDataset', "--model_type", "LRVNet", "--data_mode", "unified"]
-    main(argv)
+    #argv = ['--input', 'D:/UnifiedDataset', "--model_type", "LRVNet", "--data_mode", "unified"]
+    main(sys.argv)
