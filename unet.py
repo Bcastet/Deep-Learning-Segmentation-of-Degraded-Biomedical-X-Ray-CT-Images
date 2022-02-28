@@ -116,12 +116,13 @@ def run_train(model, epochs, dataset, device):
     batch_size = 16
     vis_freq = 1
 
-    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.1),
-                                                                 int(len(dataset) - int(len(dataset) * 0.1))])
+    #train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.1),
+    #                                                             int(len(dataset) - int(len(dataset) * 0.1))])
+    train_set = dataset
 
     loader_train = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2)
-    loader_valid = torch.utils.data.DataLoader(val_set, batch_size=batch_size, shuffle=True, num_workers=2)
-    loaders = {"train": loader_train, "valid": loader_valid}
+    #loader_valid = torch.utils.data.DataLoader(val_set, batch_size=batch_size, shuffle=True, num_workers=2)
+    loaders = {"train": loader_train, "valid": None}
 
     print("Dataset size : ", len(train_set))
     print("Steps per epoch : ", len(train_set) // batch_size)

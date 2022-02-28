@@ -370,10 +370,8 @@ def train_lowres(dataset, lowresbranch, epochs, device):
     loss_values = []
 
     subss = torch.nn.MaxPool2d((16, 16))
-    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9),
-                                                                 int(len(dataset)) - int(len(dataset) * 0.9)])
+    train_set = dataset
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=16, shuffle=True, num_workers=8)
-    validation_loader = torch.utils.data.DataLoader(val_set, batch_size=16, shuffle=True, num_workers=8)
 
     print("Train loader has", len(train_set), "samples")
     for epoch in range(epochs):
@@ -421,19 +419,16 @@ def train_unet(dataset, lowresbranch_trained, unet, device, epochs):
     lowresbranch_trained.to(device)
     unet.to(device)
     optimizer_u = torch.optim.Adam(unet.parameters(), lr=1e-4)
-
-    train_set, val_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9),
-                                                                 int(len(dataset)) - int(len(dataset) * 0.9)])
+    train_set = dataset
     print("Train set has:",len(train_set), "images")
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=1, shuffle=True, num_workers=2)
-    validation_loader = torch.utils.data.DataLoader(val_set, batch_size=1, shuffle=True, num_workers=2)
-    loss_values = []
+
     loss = DiceLoss()
 
     for epoch in range(epochs):
         running_loss = 0.0
         for i_batch, sample_batch in enumerate(train_loader):
-            print("image", i_batch)
+            #print("image", i_batch)
             x = sample_batch[0]
             y = sample_batch[1]
 
@@ -480,4 +475,4 @@ def run_train(model, epochs, dataset, device):
     lowResBranch, unet = model
     lowResBranch = train_lowres(dataset, lowResBranch, epochs, device)
     funLowRes = functionnalLowRes(lowResBranch)
-    return train_unet(dataset, funLowRes, unet, device, epochs)
+    return lowResBranch, train_unet(dataset, funLowRes, unet, device, epochs)

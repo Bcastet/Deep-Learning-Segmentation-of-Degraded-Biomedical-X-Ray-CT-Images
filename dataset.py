@@ -59,11 +59,39 @@ class SeparatedDataset(Dataset):
         return [source, target]
 
 
-class UnifiedDataset(SeparatedDataset):
-    def __init__(self, damaged_data_source, segmented_data_source):
-        pass
+class UnifiedDataset(Dataset):
+    def __init__(self, source_repository):
         super().__init__()
+        self.train_repo = os.path.join(source_repository, "TRAINING")
+        self.test_repo = os.path.join(source_repository, "TESTS")
 
+        self.source_repo = os.path.join(self.train_repo, "INPUTS")
+        self.target_repo = os.path.join(self.train_repo, "TARGETS")
+
+    def __getitem__(self, item):
+        if isinstance(item, torch.Tensor):
+            item = item.item()
+
+        file = os.path.join(self.source_repo, str(item) + ".tif")
+
+        source = numpy.asarray(Image.open(file))
+
+        target_file = os.path.join(self.target_repo, str(item) + ".tif")
+        target = numpy.asarray(Image.open(target_file))
+
+        source = source.reshape(1, source.shape[0], source.shape[1])
+        target = target.reshape(1, target.shape[0], target.shape[1])
+
+        source = source / 255
+        target = target / 255
+
+        source = torch.tensor(source).float()
+        target = torch.tensor(target).float()
+
+        return [source, target]
+
+    def __len__(self):
+        return len(os.listdir(self.source_repo))
 
 
 class datasetAsPatches(Dataset):

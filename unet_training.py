@@ -4,6 +4,7 @@ import os
 import torch
 from dataset import SeparatedDataset, UnifiedDataset
 import warnings
+import time
 
 dirname = os.path.dirname(__file__)
 
@@ -20,7 +21,8 @@ def usage(exception):
     print("     --model_type <model_type>    : 'Unet' or 'LRVNET'")
     print("     --data_mode <data_mode>      : 'separated' or 'unified'")
     print("   -other options")
-    print("     --damaged_dir <damaged_dir>  : name of the directory where inputs are located. Only for separated mode. Ex : ReconFBP_crop_300")
+    print(
+        "     --damaged_dir <damaged_dir>  : name of the directory where inputs are located. Only for separated mode. Ex : ReconFBP_crop_300")
     print(
         "     --segmented_dir <segmented_dir>: name of the directory where targets are located. Only for separated mode. Ex : ReconFBP_1800_SEGM")
     print("     --save   <save_repository>   : the location the model should be saved at")
@@ -81,9 +83,14 @@ def parse_args(argv):
         if opt == "--segmented_dir ":
             segmented_dir = arg
 
-    if input_data_repository is None or target_repository is None or model_type is None or data_mode is None:
-        usage(IllegalArgumentError("--input, --target, --model_type and --data_mode should be specified"))
+    if model_save_repository == "models/" and "data_mode" == "unified":
+        model_save_repository = os.path.join(input_data_repository, "MODELS")
 
+    if (data_mode == "separated" and (
+            input_data_repository is None or target_repository is None)) is None or model_type is None or data_mode is None:
+        usage(IllegalArgumentError("--input, --target, --model_type and --data_mode should be specified"))
+    if data_mode == "unified" and input_data_repository is None:
+        usage(IllegalArgumentError("data_mode is unified, please specify --input"))
     # if data_mode == "separated" and input_data_repository != target_repository:
     #    usage(Exception("data_mode is separated, therefore --input and --target should be equal"))
 
@@ -140,17 +147,22 @@ def main(argv):
     if data_mode == "separated":
         dataset = SeparatedDataset(input_data_repository, target_repository, damaged_dir, segmented_dir)
     elif data_mode == "unified":
-        dataset = UnifiedDataset(input_data_repository, target_repository)
+        dataset = UnifiedDataset(input_data_repository)
 
     if epochs is None:
         epochs = 1
 
     device = torch.device("cuda:0")
     model = run_train(model, epochs, dataset, device)
-    torch.save(model.state_dict(), os.path.join(model_save_repository, model_type + ".pt"))
+    if model_type == "Unet":
+        torch.save(model.state_dict(), os.path.join(model_save_repository, model_type + "_" + str(time.time()) + ".pt"))
+    elif model_type == "LRVNet":
+        lowResolutionBranch, unet = model
+        torch.save(lowResolutionBranch.state_dict(),
+                   os.path.join(model_save_repository, "lrvnet_lrb_" + str(time.time()) + ".pt"))
+        torch.save(unet.state_dict(), os.path.join(model_save_repository, "lrvnet" + "_" + str(time.time()) + ".pt"))
 
 
 if __name__ == '__main__':
-    #argv = ['--input', 'D:/Datasets', '--target', 'D:/Datasets', "--model_type", "LRVNet", "--data_mode", "separated",
-    #        "--damaged_dir", "ReconFBP_crop_300", "--segmented_dir", "ReconFBP_1800_SEGM"]
-    main(sys.argv)
+    argv = ['--input', 'D:/UnifiedDataset', "--model_type", "LRVNet", "--data_mode", "unified"]
+    main(argv)
